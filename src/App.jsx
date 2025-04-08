@@ -80,7 +80,7 @@ const generateMonthRows = (month, year) => {
       for (let i = 1; i < updatedRows.length; i++) {
         // Fill current chapter's pages
         if (currentPage <= currentChapter.ending_page) {
-          updatedRows[i][2] = `${currentPage} (${currentChapter.chapter_name_arabic})`;
+          updatedRows[i][2] = `${currentChapter.chapter_name_arabic} ${currentPage} `;
           currentPage++;
         } else {
           // Move to next chapter
@@ -236,7 +236,7 @@ const generateMonthRows = (month, year) => {
       if (watermarkImageData) {
         const watermarkDiv = document.createElement('div');
         watermarkDiv.style.position = 'absolute';
-        watermarkDiv.style.top = '0';
+        watermarkDiv.style.top = '-58px'; // Adjusted to position higher on the page
         watermarkDiv.style.bottom = '80';
         watermarkDiv.style.left = '0';
         watermarkDiv.style.width = '100%';
@@ -245,7 +245,7 @@ const generateMonthRows = (month, year) => {
         watermarkDiv.style.backgroundPosition = 'center center';
         watermarkDiv.style.backgroundRepeat = 'no-repeat';
         watermarkDiv.style.backgroundSize = '92%';
-        watermarkDiv.style.opacity = '0.4';
+        watermarkDiv.style.opacity = '0.5';
         watermarkDiv.style.zIndex = '0';
         container.appendChild(watermarkDiv);
       }
@@ -272,7 +272,7 @@ const generateMonthRows = (month, year) => {
       intro.style.textAlign = 'center';
       // intro.style.marginBottom = '5px';
       intro.style.fontWeight = 'bold';
-      intro.style.fontSize = '15px';
+      intro.style.fontSize = '20px';
       intro.style.display = 'block';
       contentDiv.appendChild(intro);
 
@@ -282,9 +282,9 @@ const generateMonthRows = (month, year) => {
       slogan.style.fontFamily = 'Arabic Typesetting, Arial';
       slogan.style.color = '#984806'; // Bootstrap primary color
       slogan.style.textAlign = 'center';
-      // slogan.style.marginBottom = '5px';
+      slogan.style.marginBottom = '8px';
       slogan.style.fontWeight = 'bold';
-      slogan.style.fontSize = '18px';
+      slogan.style.fontSize = '25px';
       slogan.style.display = 'block';
       contentDiv.appendChild(slogan);
       // Add title
@@ -459,7 +459,7 @@ const generateMonthRows = (month, year) => {
           </div>
           
           {/* Month Selector */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ">
             <label className="font-medium">الشهر:</label>
             <select
               value={currentMonth}
@@ -540,14 +540,16 @@ const generateMonthRows = (month, year) => {
             <div className="flex gap-2">
               <button
                 style={{ backgroundColor: "black" }}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 hover:scale-105 transition-transform duration-200"
                 onClick={downloadDocx}
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    جاري المعالجة...
+                    <span className="text-xs">
+                      جاري المعالجة...
+                      </span> 
                   </>
                 ) : (
                   "تحميل DOCX"
@@ -555,14 +557,16 @@ const generateMonthRows = (month, year) => {
               </button>
               <button
                 style={{ backgroundColor: "black" }}
-                className="text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+                className="text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2 hover:scale-105 transition-transform duration-200"
                 onClick={downloadPDF}
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    جاري المعالجة...
+                    <span className="text-xs">
+                      جاري المعالجة...
+                      </span> 
                   </>
                 ) : (
                   "تحميل PDF"
@@ -586,6 +590,18 @@ const generateMonthRows = (month, year) => {
                   <tr key={rowIndex} className={rowIndex % 2 === 0 ? "bg-gray-50" : ""}>
                     {row.map((cell, colIndex) => (
                       <td key={colIndex} className="border p-2">
+                        {colIndex === 4 ? (
+                        <select name="" id="" 
+                        onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
+                        className="w-full border-none focus:outline-none bg-transparent text-center"
+                        value={cell}
+                        >
+                          <option value="">اختر نوع التسميع</option>
+                          <option value="مراجعة ذاتية">مراجعة ذاتية</option>
+                          <option value="اتصال">اتصال</option>
+                          <option value="اختبار">اختبار</option>
+                        </select>
+                        ) : (
                         <input
                           value={cell}
                           onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
@@ -593,6 +609,7 @@ const generateMonthRows = (month, year) => {
                           placeholder={`خانة ${rowIndex + 1},${colIndex}`}
                           readOnly={colIndex < 2} // Make date and day columns read-only
                         />
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -602,16 +619,16 @@ const generateMonthRows = (month, year) => {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="w-1/2 p-4 relative flex flex-col">
-          <h2 className="text-xl font-bold mb-4">معاينة PDF</h2>
-          
-          {/* Loading Spinner - Full Screen Overlay */}
+        
+          <div className="w-1/2 p-4 relative flex flex-col">
+            <h2 className="text-xl font-bold mb-4 text-center">معاينة PDF المباشرة</h2>
+            
+            
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-70 flex justify-center items-center z-10">
               <div className="flex flex-col items-center">
-                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-blue-600 font-medium">جاري إنشاء المعاينة...</p>
+                <div className="w-48 h-48 border-t-transparent rounded-full animate-pulse"> <img src="logo-removebg-preview.png" alt="" /></div>
+                <p className="mt-4 text-black font-medium">جاري إنشاء التعديلات...</p>
               </div>
             </div>
           )}
@@ -621,7 +638,7 @@ const generateMonthRows = (month, year) => {
               <iframe
                 ref={pdfObjectRef}
                 src={`${pdfUrl}#toolbar=0&view=FitH&scrollbar=1`}
-                className="w-full h-full border"
+                className="w-full h-full border "
                 title="معاينة PDF"
               />
             </div>
