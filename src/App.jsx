@@ -14,16 +14,21 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";  // Add this import
+import chapters from "./chapters.json";
 
 const StakeholderEditor = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [rows, setRows] = useState([]);
-  const [projectName, setProjectName] = useState("Agricultural Export Project");
+  const [participantName, setParticipantName] = useState("محمد عبدالعظيم ابو نبعة");
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [watermarkUrl, setWatermarkUrl] = useState("/watermark.png");
   const [watermarkImageData, setWatermarkImageData] = useState(null);
+  const [selectedChapter, setSelectedChapter] = useState(null);
+  const [selectedPage, setSelectedPage] = useState(null);
+  const [availablePages, setAvailablePages] = useState([]);
   const debounceTimer = useRef(null);
   const pdfObjectRef = useRef(null);
 
@@ -37,39 +42,74 @@ const StakeholderEditor = () => {
     generateMonthRows(currentMonth, currentYear);
   }, [currentMonth, currentYear]);
 
-  // Function to get days in month (accounting for leap years)
+  // Function to get days in month
   const getDaysInMonth = (month, year) => {
-    // Month is 0-indexed (0 = January, 11 = December)
-    // Adding 1 to month and passing 0 as day gets the last day of the previous month
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Function to check if a year is a leap year
-  const isLeapYear = (year) => {
-    return ((year % 4 === 0) && (year % 100 !== 0)) || (year % 400 === 0);
-  };
+  // Function to generate rows for the full month with Arabic columns
+const generateMonthRows = (month, year) => {
+  const daysInMonth = getDaysInMonth(month, year);
+  const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  
+  // Create header row with Arabic columns (right to left)
+  const newRows = [
+    ["اليوم", "التاريخ", "الحفظ", "المراجعة", "نوع التسميع"]
+  ];
+  
+  // Create a row for each day of the month
+  for (let i = 1; i <= daysInMonth; i++) {
+    const date = new Date(year, month, i);
+    const dayName = days[date.getDay()];
+    const dateStr = `${i}/${month}`;
+    newRows.push([dayName,dateStr, "", "", ""]);
+  }
+  
+  setRows(newRows);
+};
 
-  // Function to generate rows for the full month
-  const generateMonthRows = (month, year) => {
-    const daysInMonth = getDaysInMonth(month, year);
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    
-    // Create header row
-    const newRows = [
-      ["Day", "Date", "Stakeholder Name", "Organization", "Interest in Project"]
-    ];
-    
-    // Create a row for each day of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
-      const dayName = days[date.getDay()];
-      const dateStr = `${monthNames[month]} ${i}`;
-      newRows.push([dayName, dateStr, "", "", ""]);
+  // When chapter or page is selected, populate the الحفظ column
+  useEffect(() => {
+    if (selectedChapter && selectedPage && rows.length > 1) {
+      const updatedRows = [...rows];
+      let currentPage = parseInt(selectedPage);
+      let currentChapter = selectedChapter;
+      let chapterIndex = chapters.findIndex(c => c.chapter_number === currentChapter.chapter_number);
+
+      for (let i = 1; i < updatedRows.length; i++) {
+        // Fill current chapter's pages
+        if (currentPage <= currentChapter.ending_page) {
+          updatedRows[i][2] = `${currentPage} (${currentChapter.chapter_name_arabic})`;
+          currentPage++;
+        } else {
+          // Move to next chapter
+          chapterIndex++;
+          if (chapterIndex >= chapters.length) {
+            break; // No more chapters
+          }
+          currentChapter = chapters[chapterIndex];
+          currentPage = currentChapter.starting_page;
+          updatedRows[i][2] = `${currentPage} (${currentChapter.chapter_name_arabic})`;
+          currentPage++;
+        }
+      }
+      
+      setRows(updatedRows);
     }
-    
-    setRows(newRows);
-  };
+  }, [selectedPage, selectedChapter, rows.length]);
+
+  // Update available pages when chapter changes
+  useEffect(() => {
+    if (selectedChapter) {
+      const pages = [];
+      for (let i = selectedChapter.starting_page; i <= selectedChapter.ending_page; i++) {
+        pages.push(i);
+      }
+      setAvailablePages(pages);
+      setSelectedPage(null);
+    }
+  }, [selectedChapter]);
 
   // Function to handle month change
   const handleMonthChange = (e) => {
@@ -91,7 +131,6 @@ const StakeholderEditor = () => {
       const response = await fetch(watermarkUrl);
       const blob = await response.blob();
       
-      // Convert to base64 for use with docx and pdf-lib
       const reader = new FileReader();
       reader.onload = () => {
         setWatermarkImageData(reader.result);
@@ -102,11 +141,6 @@ const StakeholderEditor = () => {
     }
   };
 
-  // Function to select a different watermark from available options
-  const selectWatermark = (url) => {
-    setWatermarkUrl(url);
-  };
-
   const updateCell = (rowIndex, colIndex, value) => {
     const updated = rows.map((row, rIdx) =>
       rIdx === rowIndex ? row.map((cell, cIdx) => (cIdx === colIndex ? value : cell)) : row
@@ -114,59 +148,39 @@ const StakeholderEditor = () => {
     setRows(updated);
   };
 
-  // Set PDF view to "fit to width" when PDF is loaded
-  useEffect(() => {
-    if (pdfObjectRef.current && pdfUrl) {
-      // Add message listener to set view mode when PDF loads
-      const handlePdfLoad = () => {
-        try {
-          if (pdfObjectRef.current) {
-            // For browsers that support postMessage with PDF viewers
-            pdfObjectRef.current.contentWindow.postMessage({
-              type: 'setViewMode',
-              mode: 'FitH'
-            }, '*');
-          }
-        } catch (e) {
-          console.error("Error setting PDF view mode:", e);
-        }
-      };
-
-      // Set a timeout to ensure PDF has loaded
-      const timeoutId = setTimeout(handlePdfLoad, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [pdfUrl]);
-
   const generateDoc = async () => {
     try {
-      // Create title with project name
+      // Create title with participant name and month
+      const titleText = `خطة المشترك/ة : ${participantName}    خلال شهر ${currentMonth + 1}`;
       const titleParagraph = new Paragraph({
-        text: projectName,
-        heading: "Heading1",
-        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: titleText,
+            bold: true,
+            font: "Simplified Arabic",
+            size: 24
+          })
+        ],
+        alignment: AlignmentType.RIGHT,
         spacing: { after: 200 }
       });
       
-      // Create subtitle
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      const subtitleText = `Stakeholder Registry - ${monthNames[currentMonth]} ${currentYear}`;
-      const subtitleParagraph = new Paragraph({
-        text: subtitleText,
-        heading: "Heading2",
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 200 }
-      });
-
-      // Create table with proper borders
+      // For the table in generateDoc function 
       const table = new Table({
         rows: rows.map((row, rowIndex) => 
           new TableRow({
             children: row.map((cell, colIndex) => 
               new TableCell({
                 children: [new Paragraph({
-                  text: cell,
-                  alignment: rowIndex === 0 ? AlignmentType.CENTER : AlignmentType.LEFT
+                  children: [
+                    new TextRun({
+                      text: cell,
+                      font: "Simplified Arabic",
+                      size: 12 * 2, // docx uses half-points, so 12pt = 24 half-points
+                      bold: rowIndex === 0
+                    })
+                  ],
+                  alignment: AlignmentType.CENTER
                 })],
                 ...(rowIndex === 0 ? { shading: { fill: "CCCCCC" } } : {})
               })
@@ -189,43 +203,14 @@ const StakeholderEditor = () => {
 
       // Prepare document sections
       const sections = [{
+        properties: {
+          direction: "rtl"
+        },
         children: [
           titleParagraph,
-          subtitleParagraph,
           table
         ]
       }];
-
-      // Add watermark to header if available
-      if (watermarkImageData) {
-        try {
-          const imageBase64 = watermarkImageData.split(',')[1];
-          
-          // Add header with watermark image
-          const header = new Header({
-            children: [
-              new Paragraph({
-                children: [
-                  new ImageRun({
-                    data: Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0)),
-                    transformation: {
-                      width: 600,
-                      height: 300,
-                      opacity: 0.2,
-                    },
-                  }),
-                ],
-                alignment: AlignmentType.CENTER,
-              }),
-            ],
-          });
-          
-          // Add header to sections
-          sections[0].headers = { default: header };
-        } catch (error) {
-          console.error("Error adding watermark to DOCX:", error);
-        }
-      }
 
       // Create document
       const doc = new Document({ sections });
@@ -239,134 +224,153 @@ const StakeholderEditor = () => {
   const generatePDF = async () => {
     try {
       setLoading(true);
-      // Create a larger page to accommodate all rows
-      const pageHeight = 800 + (rows.length * 30);
-      const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([800, Math.max(1000, pageHeight)]);
-      const { width, height } = page.getSize();
-
-      // Add watermark if available
+      
+      // Create a container for everything
+      const container = document.createElement('div');
+      container.style.width = '1000px'; // A4 width in pixels at 72 DPI
+      container.style.height = '1400px'; // A4 height
+      container.style.position = 'relative';
+      container.style.backgroundColor = 'white';
+      
+      // Add watermark directly as a background
       if (watermarkImageData) {
-        try {
-          const imageData = watermarkImageData.split(',')[1];
-          let pdfImage;
-          
-          if (watermarkImageData.includes('image/png')) {
-            pdfImage = await pdfDoc.embedPng(Uint8Array.from(atob(imageData), c => c.charCodeAt(0)));
-          } else if (watermarkImageData.includes('image/jpeg') || watermarkImageData.includes('image/jpg')) {
-            pdfImage = await pdfDoc.embedJpg(Uint8Array.from(atob(imageData), c => c.charCodeAt(0)));
-          }
-          
-          if (pdfImage) {
-            // Scale image to fit page while maintaining aspect ratio
-            const imgDims = pdfImage.scale(0.5);
-            page.drawImage(pdfImage, {
-              x: width / 2 - imgDims.width / 2,
-              y: height / 2 - imgDims.height / 2,
-              width: imgDims.width,
-              height: imgDims.height,
-              opacity: 0.15, // Make watermark more subtle
-            });
-          }
-        } catch (error) {
-          console.error("Error adding watermark to PDF:", error);
-        }
+        const watermarkDiv = document.createElement('div');
+        watermarkDiv.style.position = 'absolute';
+        watermarkDiv.style.top = '0';
+        watermarkDiv.style.bottom = '80';
+        watermarkDiv.style.left = '0';
+        watermarkDiv.style.width = '100%';
+        watermarkDiv.style.height = '100%';
+        watermarkDiv.style.backgroundImage = `url(${watermarkImageData})`;
+        watermarkDiv.style.backgroundPosition = 'center center';
+        watermarkDiv.style.backgroundRepeat = 'no-repeat';
+        watermarkDiv.style.backgroundSize = '92%';
+        watermarkDiv.style.opacity = '0.4';
+        watermarkDiv.style.zIndex = '0';
+        container.appendChild(watermarkDiv);
       }
+      
+      // Create content container with higher z-index
+      const contentDiv = document.createElement('div');
+      contentDiv.style.position = 'absolute';
+      contentDiv.style.top = '0';
+      contentDiv.style.left = '0';
+      contentDiv.style.width = '100%';
+      contentDiv.style.height = '100%';
+      contentDiv.style.zIndex = '1';
+      contentDiv.style.padding = '40px';
+      contentDiv.style.boxSizing = 'border-box';
+      contentDiv.style.fontFamily = 'Simplified Arabic, Arial';
+      contentDiv.style.direction = 'rtl';
+      container.appendChild(contentDiv);
+      
+      // Add Intro
+      const intro = document.createElement('span');
+      intro.textContent = "بسم الله الرحمن الرحيم";
+      intro.style.fontFamily = 'Urdu Typesetting, Arial';
+      intro.style.color = '#1f497d'; // Bootstrap primary color
+      intro.style.textAlign = 'center';
+      // intro.style.marginBottom = '5px';
+      intro.style.fontWeight = 'bold';
+      intro.style.fontSize = '15px';
+      intro.style.display = 'block';
+      contentDiv.appendChild(intro);
 
-      // Add project name as title
-      page.drawText(projectName, {
-        x: width / 2 - ((projectName.length * 9) / 2),
-        y: height - 50,
-        size: 18,
-        color: rgb(0, 0, 0)
+      // Add multaka slogan
+      const slogan = document.createElement('span');
+      slogan.textContent = "ملتقى الأقصى القرآني";
+      slogan.style.fontFamily = 'Arabic Typesetting, Arial';
+      slogan.style.color = '#984806'; // Bootstrap primary color
+      slogan.style.textAlign = 'center';
+      // slogan.style.marginBottom = '5px';
+      slogan.style.fontWeight = 'bold';
+      slogan.style.fontSize = '18px';
+      slogan.style.display = 'block';
+      contentDiv.appendChild(slogan);
+      // Add title
+      const titleElem = document.createElement('h2');
+      titleElem.textContent = `خطة المشترك/ة : ${participantName}     خلال شهر ${currentMonth + 1}`;
+      titleElem.style.textAlign = 'center';
+      titleElem.style.marginBottom = '20px';
+      titleElem.style.fontWeight = 'bold';
+      titleElem.style.fontSize = '18px';
+      contentDiv.appendChild(titleElem);
+      
+      // Create table
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginTop = '10px';
+      
+      // Add header row
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      rows[0].forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        th.style.border = '1px solid black';
+        th.style.padding = '2px';
+        th.style.paddingBottom = '16px';
+        th.style.backgroundColor = '#CCCCCC';
+        th.style.fontWeight = 'bold';
+        th.style.textAlign = 'center';
+        th.style.verticalAlign = 'middle';    // Vertical centering
+        headerRow.appendChild(th);
       });
-
-      // Add subtitle with month and year
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      const subtitleText = `Stakeholder Registry - ${monthNames[currentMonth]} ${currentYear}`;
-      page.drawText(subtitleText, {
-        x: width / 2 - ((subtitleText.length * 7) / 2),
-        y: height - 80,
-        size: 14,
-        color: rgb(0, 0, 0)
-      });
-
-      // Draw table
-      const tableStartY = height - 120;
-      const cellPadding = 10;
-      const rowHeight = 30;
-      // Adjust column widths for 5 columns
-      const colWidths = [100, 100, 200, 200, 160];
-      const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-      const tableStartX = (width - tableWidth) / 2;
-
-      // Draw table header background
-      page.drawRectangle({
-        x: tableStartX,
-        y: tableStartY - rowHeight,
-        width: tableWidth,
-        height: rowHeight,
-        color: rgb(0.8, 0.8, 0.8),
-      });
-
-      // Draw table grid and content
-      rows.forEach((row, rowIndex) => {
-        let cellX = tableStartX;
-        const cellY = tableStartY - rowIndex * rowHeight;
-        
-        // Draw horizontal grid line
-        page.drawLine({
-          start: { x: tableStartX, y: cellY },
-          end: { x: tableStartX + tableWidth, y: cellY },
-          thickness: 1,
-          color: rgb(0, 0, 0),
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      
+      // Add data rows
+      const tbody = document.createElement('tbody');
+      rows.slice(1).forEach((rowData, rowIndex) => {
+        const tr = document.createElement('tr');
+        rowData.forEach(cellText => {
+          const td = document.createElement('td');
+          td.textContent = cellText;
+          td.style.border = '1px solid black';
+          td.style.padding = '0px';
+          td.style.paddingBottom = '12px';
+          td.style.textAlign = 'center';
+          td.style.verticalAlign = 'middle';    // Vertical centering
+          // td.style.backgroundColor = rowIndex % 2 === 0 ? '#F9F9F9' : '#FFFFFF'; // Alternate row colors
+          tr.appendChild(td);
         });
-
-        row.forEach((cell, colIndex) => {
-          const cellWidth = colWidths[colIndex];
-          
-          // Draw vertical grid line
-          page.drawLine({
-            start: { x: cellX, y: cellY },
-            end: { x: cellX, y: cellY - rowHeight },
-            thickness: 1,
-            color: rgb(0, 0, 0),
-          });
-
-          // Draw cell text
-          page.drawText(cell || "", {
-            x: cellX + cellPadding,
-            y: cellY - rowHeight + cellPadding,
-            size: 10,
-            color: rgb(0, 0, 0)
-          });
-
-          cellX += cellWidth;
-
-          // Draw last vertical grid line
-          if (colIndex === row.length - 1) {
-            page.drawLine({
-              start: { x: cellX, y: cellY },
-              end: { x: cellX, y: cellY - rowHeight },
-              thickness: 1,
-              color: rgb(0, 0, 0),
-            });
-          }
-        });
-
-        // Draw bottom grid line for the last row
-        if (rowIndex === rows.length - 1) {
-          page.drawLine({
-            start: { x: tableStartX, y: cellY - rowHeight },
-            end: { x: tableStartX + tableWidth, y: cellY - rowHeight },
-            thickness: 1,
-            color: rgb(0, 0, 0),
-          });
-        }
+        tbody.appendChild(tr);
       });
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      table.appendChild(tbody);
+      contentDiv.appendChild(table);
+      
+      // Add to document, render with html2canvas, then remove
+      document.body.appendChild(container);
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      
+      // Import dynamically
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      // Render to canvas
+      const canvas = await html2canvas(container, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true, // Allow tainted canvas
+        logging: false,
+        backgroundColor: 'white'
+      });
+      
+      document.body.removeChild(container);
+      
+      // Create PDF from canvas
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      // Convert to blob and return
+      const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       setLoading(false);
@@ -382,12 +386,12 @@ const StakeholderEditor = () => {
     try {
       setLoading(true);
       const blob = await generateDoc();
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      saveAs(blob, `${projectName.replace(/\s+/g, '_')}_${monthNames[currentMonth]}_${currentYear}.docx`);
+      const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth}_${currentYear}.docx`);
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      alert("Error generating DOCX file. Check console for details.");
+      alert("حدث خطأ أثناء إنشاء ملف DOCX. يرجى التحقق من وحدة التحكم لمزيد من التفاصيل.");
     }
   };
 
@@ -395,16 +399,16 @@ const StakeholderEditor = () => {
     try {
       setLoading(true);
       const blob = await generatePDF();
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      saveAs(blob, `${projectName.replace(/\s+/g, '_')}_${monthNames[currentMonth]}_${currentYear}.pdf`);
+      const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth}_${currentYear}.pdf`);
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      alert("Error generating PDF file. Check console for details.");
+      alert("حدث خطأ أثناء إنشاء ملف PDF. يرجى التحقق من وحدة التحكم لمزيد من التفاصيل.");
     }
   };
 
-  // Update PDF preview when rows, project name, or watermark changes
+  // Update PDF preview when rows, participant name, or watermark changes
   useEffect(() => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -419,7 +423,7 @@ const StakeholderEditor = () => {
         clearTimeout(debounceTimer.current);
       }
     };
-  }, [rows, projectName, watermarkImageData, currentMonth, currentYear]);
+  }, [rows, participantName, watermarkImageData, currentMonth, currentYear]);
 
   // Clean up URLs on unmount
   useEffect(() => {
@@ -428,14 +432,7 @@ const StakeholderEditor = () => {
         URL.revokeObjectURL(pdfUrl);
       }
     };
-  }, []);
-
-  // List of available watermarks in public folder
-  const availableWatermarks = [
-    { name: "Default", url: "/watermark.png" },
-    { name: "Company Logo", url: "/logo.png" },
-    { name: "Confidential", url: "/confidential.png" }
-  ];
+  }, [pdfUrl]);
 
   // Generate year options (current year -5 to +5)
   const currentYearNum = new Date().getFullYear();
@@ -445,48 +442,48 @@ const StakeholderEditor = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen w-full">
-      {/* Top Panel - Project Name, Month/Year and Watermark controls */}
+    <div className="flex flex-col h-screen w-screen w-full" dir="rtl">
+      {/* Top Panel - Participant Name, Month/Year and Chapter controls */}
       <div className="p-4 bg-gray-100 border-b">
         <div className="flex flex-wrap gap-4">
-          {/* Project Name Field */}
+          {/* Participant Name Field */}
           <div className="flex items-center gap-2">
-            <label className="font-medium">Project Name:</label>
+            <label className="font-medium">اسم المشترك/ة:</label>
             <input
               type="text"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              value={participantName}
+              onChange={(e) => setParticipantName(e.target.value)}
               className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter project name"
+              placeholder="أدخل اسم المشترك/ة"
             />
           </div>
           
           {/* Month Selector */}
           <div className="flex items-center gap-2">
-            <label className="font-medium">Month:</label>
+            <label className="font-medium">الشهر:</label>
             <select
               value={currentMonth}
               onChange={handleMonthChange}
               className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value={0}>January</option>
-              <option value={1}>February</option>
-              <option value={2}>March</option>
-              <option value={3}>April</option>
-              <option value={4}>May</option>
-              <option value={5}>June</option>
-              <option value={6}>July</option>
-              <option value={7}>August</option>
-              <option value={8}>September</option>
-              <option value={9}>October</option>
-              <option value={10}>November</option>
-              <option value={11}>December</option>
+              <option value={0}>يناير</option>
+              <option value={1}>فبراير</option>
+              <option value={2}>مارس</option>
+              <option value={3}>أبريل</option>
+              <option value={4}>مايو</option>
+              <option value={5}>يونيو</option>
+              <option value={6}>يوليو</option>
+              <option value={7}>أغسطس</option>
+              <option value={8}>سبتمبر</option>
+              <option value={9}>أكتوبر</option>
+              <option value={10}>نوفمبر</option>
+              <option value={11}>ديسمبر</option>
             </select>
           </div>
           
           {/* Year Selector */}
           <div className="flex items-center gap-2">
-            <label className="font-medium">Year:</label>
+            <label className="font-medium">السنة:</label>
             <select
               value={currentYear}
               onChange={handleYearChange}
@@ -498,33 +495,38 @@ const StakeholderEditor = () => {
             </select>
           </div>
           
-          {/* Watermark Selection */}
+          {/* Chapter Selection */}
           <div className="flex items-center gap-2">
-            <label className="font-medium">Watermark:</label>
+            <label className="font-medium">بداية الحفظ:</label>
             <div className="flex gap-2">
-              {availableWatermarks.map((watermark) => (
-                <button
-                  key={watermark.url}
-                  onClick={() => selectWatermark(watermark.url)}
-                  className={`px-3 py-1 rounded ${
-                    watermarkUrl === watermark.url 
-                      ? "bg-blue-500 text-white" 
-                      : "bg-white border hover:bg-gray-100"
-                  }`}
-                >
-                  {watermark.name}
-                </button>
-              ))}
+              <select
+                value={selectedChapter?.chapter_number || ""}
+                onChange={(e) => {
+                  const chapter = chapters.find(c => c.chapter_number === parseInt(e.target.value));
+                  setSelectedChapter(chapter);
+                }}
+                className="px-3 py-2 border rounded"
+              >
+                <option value="">اختر سورة</option>
+                {chapters.map(chapter => (
+                  <option key={chapter.chapter_number} value={chapter.chapter_number}>
+                    {chapter.chapter_name_arabic}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedPage || ""}
+                onChange={(e) => setSelectedPage(e.target.value)}
+                className="px-3 py-2 border rounded"
+                disabled={!selectedChapter}
+              >
+                <option value="">اختر صفحة</option>
+                {availablePages.map(page => (
+                  <option key={page} value={page}>ص {page}</option>
+                ))}
+              </select>
             </div>
-            {watermarkImageData && (
-              <div className="flex items-center gap-2">
-                <img 
-                  src={watermarkImageData} 
-                  alt="Watermark preview" 
-                  className="h-10 border" 
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -532,11 +534,12 @@ const StakeholderEditor = () => {
       {/* Main Content - Full width */}
       <div className="flex flex-1 overflow-hidden w-full">
         {/* Left Panel */}
-        <div className="w-1/2 p-4 overflow-auto border-r">
+        <div className="w-1/2 p-4 overflow-auto border-l">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Stakeholder Table Editor</h2>
+            <h2 className="text-xl font-bold">جدول خطة الحفظ</h2>
             <div className="flex gap-2">
               <button
+                style={{ backgroundColor: "black" }}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
                 onClick={downloadDocx}
                 disabled={loading}
@@ -544,24 +547,25 @@ const StakeholderEditor = () => {
                 {loading ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    Processing...
+                    جاري المعالجة...
                   </>
                 ) : (
-                  "Download DOCX"
+                  "تحميل DOCX"
                 )}
               </button>
               <button
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+                style={{ backgroundColor: "black" }}
+                className="text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2"
                 onClick={downloadPDF}
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    Processing...
+                    جاري المعالجة...
                   </>
                 ) : (
-                  "Download PDF"
+                  "تحميل PDF"
                 )}
               </button>
             </div>
@@ -571,7 +575,7 @@ const StakeholderEditor = () => {
               <thead className="sticky top-0 bg-white">
                 <tr className="bg-gray-200">
                   {rows[0]?.map((header, colIndex) => (
-                    <th key={colIndex} className="border p-2 text-center">
+                    <th key={colIndex} className="border p-2 text-center font-bold">
                       {header}
                     </th>
                   ))}
@@ -585,9 +589,9 @@ const StakeholderEditor = () => {
                         <input
                           value={cell}
                           onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
-                          className="w-full border-none focus:outline-none bg-transparent"
-                          placeholder={`Cell ${rowIndex + 1},${colIndex}`}
-                          readOnly={colIndex < 2} // Make day and date columns read-only
+                          className="w-full border-none focus:outline-none bg-transparent text-center"
+                          placeholder={`خانة ${rowIndex + 1},${colIndex}`}
+                          readOnly={colIndex < 2} // Make date and day columns read-only
                         />
                       </td>
                     ))}
@@ -600,30 +604,26 @@ const StakeholderEditor = () => {
 
         {/* Right Panel */}
         <div className="w-1/2 p-4 relative flex flex-col">
-          <h2 className="text-xl font-bold mb-4">Live PDF Preview</h2>
+          <h2 className="text-xl font-bold mb-4">معاينة PDF</h2>
           
           {/* Loading Spinner - Full Screen Overlay */}
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-70 flex justify-center items-center z-10">
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p className="mt-4 text-blue-600 font-medium">Generating Preview...</p>
+                <p className="mt-4 text-blue-600 font-medium">جاري إنشاء المعاينة...</p>
               </div>
             </div>
           )}
           
           {pdfUrl && (
             <div className="flex-1 h-full">
-              <object
+              <iframe
                 ref={pdfObjectRef}
-                data={`${pdfUrl}#toolbar=0&view=FitH&scrollbar=1`}
-                type="application/pdf"
+                src={`${pdfUrl}#toolbar=0&view=FitH&scrollbar=1`}
                 className="w-full h-full border"
-                aria-label="PDF Preview"
-                style={{ width: '100%', height: '100%' }}
-              >
-                <p>Your browser does not support PDFs. <a href={pdfUrl} target="_blank" rel="noopener noreferrer">Download the PDF</a>.</p>
-              </object>
+                title="معاينة PDF"
+              />
             </div>
           )}
         </div>
