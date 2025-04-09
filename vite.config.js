@@ -11,8 +11,14 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
+    },
+  build: {
+    rollupOptions: {
+      external: []
     }
+  }
 })
+
 
 
 // import { defineConfig } from 'vite'
