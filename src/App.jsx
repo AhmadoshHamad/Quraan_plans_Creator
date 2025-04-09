@@ -17,6 +17,8 @@ import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";  // Add this import
 import chapters from "./chapters.json";
 
+
+
 const StakeholderEditor = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -31,6 +33,24 @@ const StakeholderEditor = () => {
   const [availablePages, setAvailablePages] = useState([]);
   const debounceTimer = useRef(null);
   const pdfObjectRef = useRef(null);
+
+  // Advanced Collopased Menu
+  const [pagesPerDay, setPagesPerDay] = useState(1);
+  const [advancedMenu, setAdvancedMenu] = useState(false);
+  const [alternateDay, setAlternateDay] = useState(false);
+  const [startingDay, setStartingDay] = useState(1);
+  const contentRef = useRef(null);
+     // Eclude weekdays
+  const [excludeWeekdays, setExcludeWeekdays] = useState({
+    "الأحد": false,
+    "الإثنين": false,
+    "الثلاثاء": false,
+    "الأربعاء": false,
+    "الخميس": false,
+    "الجمعة": false,
+    "السبت": false,
+  });
+
 
   // Load watermark image on component mount
   useEffect(() => {
@@ -47,58 +67,108 @@ const StakeholderEditor = () => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Function to generate rows for the full month with Arabic columns
+// Function to generate rows for the month starting from a specific day
 const generateMonthRows = (month, year) => {
   const daysInMonth = getDaysInMonth(month, year);
   const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-  const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
   
   // Create header row with Arabic columns (right to left)
   const newRows = [
     ["اليوم", "التاريخ", "الحفظ", "المراجعة", "نوع التسميع"]
   ];
   
-  // Create a row for each day of the month
-  for (let i = 1; i <= daysInMonth; i++) {
+  // Create a row for each day starting from startingDay to the end of the month
+  for (let i = startingDay; i <= daysInMonth; i++) {
     const date = new Date(year, month, i);
     const dayName = days[date.getDay()];
-    const dateStr = `${i}/${month}`;
-    newRows.push([dayName,dateStr, "", "", ""]);
+    const dateStr = `${i}/${month + 1}`; // Month is 0-indexed, so add 1
+    newRows.push([dayName, dateStr, "", "", ""]);
   }
   
   setRows(newRows);
 };
 
-  // When chapter or page is selected, populate the الحفظ column
-  useEffect(() => {
-    if (selectedChapter && selectedPage && rows.length > 1) {
-      const updatedRows = [...rows];
-      let currentPage = parseInt(selectedPage);
-      let currentChapter = selectedChapter;
-      let chapterIndex = chapters.findIndex(c => c.chapter_number === currentChapter.chapter_number);
-
-      for (let i = 1; i < updatedRows.length; i++) {
-        // Fill current chapter's pages
-        if (currentPage <= currentChapter.ending_page) {
-          updatedRows[i][2] = `${currentChapter.chapter_name_arabic} ${currentPage} `;
-          currentPage++;
-        } else {
-          // Move to next chapter
-          chapterIndex++;
-          if (chapterIndex >= chapters.length) {
-            break; // No more chapters
-          }
-          currentChapter = chapters[chapterIndex];
-          currentPage = currentChapter.starting_page;
-          updatedRows[i][2] = `${currentPage} (${currentChapter.chapter_name_arabic})`;
-          currentPage++;
-        }
+ // When chapter or page is selected, populate the الحفظ column
+useEffect(() => {
+  generateMonthRows(currentMonth, currentYear);
+  if (selectedChapter && selectedPage && rows.length > 1) {
+    const updatedRows = [...rows];
+    let currentPage = parseInt(selectedPage);
+    let currentChapter = selectedChapter;
+    let chapterIndex = chapters.findIndex(c => c.chapter_number === currentChapter.chapter_number);
+    
+    for (let i = 1; i < updatedRows.length; i++) {
+      const dayName = updatedRows[i][0]; // Get the day name from the row
+      
+      // Skip this day if it's excluded
+      if (excludeWeekdays[dayName]) {
+        updatedRows[i][2] = ""; // Clear the الحفظ column for excluded days
+        continue;
       }
       
-      setRows(updatedRows);
+      // Skip alternate days if the option is enabled
+      if (alternateDay && i % 2 === 0) {
+        updatedRows[i][2] = ""; // Clear the الحفظ column for alternate days
+        continue;
+      }
+      
+      // Calculate ending page for this day based on pagesPerDay
+      let endPage = currentPage + pagesPerDay - 1;
+      let pageRange = "";
+      
+      // Check if we're still in the same chapter
+      if (endPage <= currentChapter.ending_page) {
+        // Same chapter
+        if (pagesPerDay === 1) {
+          pageRange = `${currentChapter.chapter_name_arabic} ${currentPage}`;
+        } else {
+          pageRange = `${currentChapter.chapter_name_arabic} ${currentPage}-${endPage}`;
+        }
+        currentPage = endPage + 1;
+      } else {
+        // We need to span across chapters
+        let remainingPages = pagesPerDay;
+        let pageSegments = [];
+        
+        // Add pages from current chapter
+        let pagesFromCurrentChapter = currentChapter.ending_page - currentPage + 1;
+        if (pagesFromCurrentChapter > 0) {
+          if (pagesFromCurrentChapter === 1) {
+            pageSegments.push(`${currentChapter.chapter_name_arabic} ${currentPage}`);
+          } else {
+            pageSegments.push(`${currentChapter.chapter_name_arabic} ${currentPage}-${currentChapter.ending_page}`);
+          }
+          remainingPages -= pagesFromCurrentChapter;
+        }
+        
+        // If we need more pages, move to next chapter(s)
+        while (remainingPages > 0 && chapterIndex + 1 < chapters.length) {
+          chapterIndex++;
+          currentChapter = chapters[chapterIndex];
+          currentPage = currentChapter.starting_page;
+          
+          let pagesToTake = Math.min(remainingPages, currentChapter.ending_page - currentChapter.starting_page + 1);
+          endPage = currentPage + pagesToTake - 1;
+          
+          if (pagesToTake === 1) {
+            pageSegments.push(`${currentChapter.chapter_name_arabic} ${currentPage}`);
+          } else {
+            pageSegments.push(`${currentChapter.chapter_name_arabic} ${currentPage}-${endPage}`);
+          }
+          
+          remainingPages -= pagesToTake;
+          currentPage = endPage + 1;
+        }
+        
+        pageRange = pageSegments.join(" + ");
+      }
+      
+      updatedRows[i][2] = pageRange;
     }
-  }, [selectedPage, selectedChapter, rows.length]);
-
+    
+    setRows(updatedRows);
+  }
+}, [selectedPage, selectedChapter, rows.length, excludeWeekdays, pagesPerDay, alternateDay, startingDay, currentMonth, currentYear]);
   // Update available pages when chapter changes
   useEffect(() => {
     if (selectedChapter) {
@@ -527,11 +597,136 @@ const generateMonthRows = (month, year) => {
                 ))}
               </select>
             </div>
+            <div className="">
+            <button
+        className="w-full flex justify-between items-center text-left font-medium  hover:text-blue-800"
+        onClick={() => setAdvancedMenu(!advancedMenu)}
+      >
+        <span className="px-2">إعدادات متقدمة</span>
+        <span>{advancedMenu ? '▲' : '▼'}</span>
+      </button>
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Main Content - Full width */}
+       
+      {/* /* Advanced Settings  */} 
+            <div
+            ref={contentRef}
+            className="transition-all duration-500 ease-in-out overflow-hidden"
+            style={{
+            maxHeight: advancedMenu ? contentRef.current?.scrollHeight + 'px' : '0px',
+            }}
+          >
+            <div className="mt-4 space-y-3">
+              <div className="w-1/2 flex justify-between items-center">
+              <div className="flex items-center">
+  <label className="text-md font-bold mb-2 ml-3">عدد الصفحات/ يوم</label>
+  <input 
+    type="number" 
+    className="w-10 p-1 border rounded"
+    value={pagesPerDay}
+    onChange={(e) => setPagesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+    min="1"
+  />
+</div>
+<div className="flex items-center align-items-center">
+  <input 
+    type="checkbox" 
+    className="ml-2 w-7 h-7" 
+    checked={alternateDay}
+    onChange={(e) => setAlternateDay(e.target.checked)} 
+  />
+  <label className="text-md font-bold">صفحة يوم بعد يوم</label>
+</div>
+<div className="flex items-center">
+  <label className="text-md font-bold mb-2 ml-3">يوم البداية:</label>
+  <input 
+    type="number" 
+    className="w-16 p-1 border rounded"
+    value={startingDay}
+    onChange={(e) => {
+      const value = parseInt(e.target.value) || 1;
+      const maxDays = getDaysInMonth(currentMonth, currentYear);
+      setStartingDay(Math.min(Math.max(1, value), maxDays));
+    }}
+    min="1"
+    max={getDaysInMonth(currentMonth, currentYear)}
+  />
+</div>
+              </div>
+              <label className="block text-lg font-bold"> إستثناء أيام محددة:</label>
+              <div className="w-1/2 grid grid-cols-3 gap-0">
+  <div className="flex items-center">
+    <input 
+      id="ExcludeSundays" 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الأحد"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأحد": e.target.checked}))} 
+    />
+    استثناء يوم الأحد
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الإثنين"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الإثنين": e.target.checked}))} 
+    />
+    استثناء يوم الإثنين
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الثلاثاء"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الثلاثاء": e.target.checked}))} 
+    />
+    استثناء يوم الثلاثاء
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الأربعاء"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأربعاء": e.target.checked}))} 
+    />
+    استثناء يوم الأربعاء
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الخميس"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الخميس": e.target.checked}))} 
+    />
+    استثناء يوم الخميس
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["الجمعة"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الجمعة": e.target.checked}))} 
+    />
+    استثناء يوم الجمعة
+  </div>
+  <div className="flex items-center">
+    <input 
+      type="checkbox" 
+      className="ml-2 w-5 h-5" 
+      checked={excludeWeekdays["السبت"]}
+      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "السبت": e.target.checked}))} 
+    />
+    استثناء يوم السبت
+  </div>
+</div>
+            </div>
+          </div>
+
+          </div>
+          
+          {/* Main Content - Full width */}
       <div className="flex flex-1 overflow-hidden w-full">
         {/* Left Panel */}
         <div className="w-1/2 p-4 overflow-auto border-l">
