@@ -520,7 +520,7 @@ useEffect(() => {
 
   return (
     // Replace the top-level container div with this responsive container
-<div className="flex flex-col h-screen w-screen w-full" dir="rtl">
+<div className="flex flex-col h-screen w-screen overflow-hidden" dir="rtl">
   {/* Top Panel - Responsive control panel */}
   <div className="p-2 sm:p-4 bg-gray-100 border-b">
     <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
@@ -610,7 +610,8 @@ useEffect(() => {
         </div>
         
         <button
-          className="w-full sm:w-auto flex justify-between items-center text-left font-medium hover:text-blue-800 mt-1 sm:mt-0"
+          style={{ border: "1px solid black" }}
+          className="w-full bg-transparent sm:w-auto flex justify-between items-center text-left font-medium  hover:text-blue-800 mt-1 sm:mt-0 "
           onClick={() => setAdvancedMenu(!advancedMenu)}
         >
           <span className="px-2">إعدادات متقدمة</span>
@@ -747,15 +748,15 @@ useEffect(() => {
   </div>
   
   {/* Main Content - Stack vertically on mobile, side by side on desktop */}
-  <div className="flex flex-col lg:flex-row flex-1 overflow-hidden w-full">
-    {/* Table Panel - Full width on mobile */}
-    <div className="w-full lg:w-1/2 p-2 sm:p-4 overflow-auto border-b lg:border-b-0 lg:border-l">
+  <div className=" flex flex-col lg:flex-row flex-1 overflow-hidden w-full">
+    {/* Table Panel - Full width on mobile */} 
+    <div className="w-full min-h-60 lg:w-1/2 p-2 sm:p-4 overflow-y-auto overflow-x-hidden border-b lg:border-b-0 lg:border-l">
       <div className="flex justify-between items-center mb-2 sm:mb-4">
         <h2 className="text-lg sm:text-xl font-bold">جدول خطة الحفظ</h2>
         <div className="flex gap-1 sm:gap-2">
           <button
             style={{ backgroundColor: "black" }}
-            className="bg-green-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded text-xs sm:text-base hover:bg-green-700 flex items-center gap-1 sm:gap-2 hover:scale-105 transition-transform duration-200"
+            className="bg-green-600 text-white text-[5px] px-2 sm:px-4 py-1 sm:py-2 rounded  sm:text-base hover:bg-green-700 flex items-center gap-1 sm:gap-2 hover:scale-105 transition-transform duration-200"
             onClick={downloadDocx}
             disabled={loading}
           >
@@ -832,7 +833,10 @@ useEffect(() => {
     
     {/* PDF Preview - Full width on mobile */}
     <div className="w-full lg:w-1/2 p-2 sm:p-4 relative flex flex-col min-h-[50vh] lg:min-h-0">
-      <h2 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4 text-center"> PDF Live View <span className="w-2 h-2 border-2 border-b-orange-600 rounded-full animate-pulse"></span></h2>
+    <div className="flex justify-center items-center align-items-center ">
+      <div className="w-3 h-3  rounded-full animate-pulse bg-red-500 mb-3 ml-2"></div>
+      <span className="text-lg sm:text-xl font-bold mb-2 sm:mb-4 text-center m-0"> PDF Live View </span>
+    </div>
       
       {loading && (
         <div className="absolute inset-0 bg-white bg-opacity-70 flex justify-center items-center z-10">
