@@ -24,7 +24,7 @@ jobs:
 
             -   name: Build Vite React App
                 run: npm run build
-                
+
             -   name: Deploy via SSH
                 uses: appleboy/ssh-action@v0.1.5
                 with:
@@ -35,4 +35,4 @@ jobs:
                     script: |
                         cd domains/hotpink-magpie-870177.hostingersite.com/public_html/
                         rm -rf *
-                        cp -r /build/output/* .
+                        cp -r dist/* .
