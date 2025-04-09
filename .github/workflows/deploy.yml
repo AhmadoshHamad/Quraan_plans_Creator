@@ -27,14 +27,12 @@ jobs:
       - name: Verify Build Directory
         run: ls -la dist
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.5
+      - name: Deploy via SCP
+        uses: appleboy/scp-action@v0.1.5
         with:
           host: 46.202.172.230
           username: u401178355
           port: 65002
           password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            cd domains/hotpink-magpie-870177.hostingersite.com/public_html/
-            rm -rf *
-            cp -r ~/Multaka_alaqsa_plan/dist/* .
+          source: "dist/*"
+          target: "domains/hotpink-magpie-870177.hostingersite.com/public_html/"
