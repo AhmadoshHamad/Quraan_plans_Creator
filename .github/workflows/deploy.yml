@@ -34,6 +34,6 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           port: ${{ secrets.SSH_PORT }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: "dist/*"
+          source: "dist/"
           target: "domains/hotpink-magpie-870177.hostingersite.com/public_html/"
 
