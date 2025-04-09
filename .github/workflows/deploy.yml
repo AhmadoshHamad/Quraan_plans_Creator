@@ -36,3 +36,14 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: "dist/*"
           target: "domains/hotpink-magpie-870177.hostingersite.com/public_html/"
+
+      - name: Move files to public_html
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: 46.202.172.230
+          username: ${{ secrets.SSH_USERNAME }}
+          port: 65002
+          password: ${{ secrets.SSH_PASSWORD }}
+          script: |
+            cd domains/hotpink-magpie-870177.hostingersite.com/public_html/
+            mv ~/dist/* .
