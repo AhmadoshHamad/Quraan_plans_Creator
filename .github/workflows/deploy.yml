@@ -1,1 +1,37 @@
 
+name: Build Vite React App
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            -   name: Checkout Code
+                uses: actions/checkout@v3
+
+            -   name: Set up Node.js
+                uses: actions/setup-node@v3
+                with:
+                    node-version: 18
+
+            -   name: Install Dependencies
+                run: npm install
+
+            -   name: Build Vite React App
+                run: npm run build
+            -   name: Deploy via SSH
+                uses: appleboy/ssh-action@v0.1.5
+                with:
+                    host: 46.202.172.230
+                    username: u401178355
+                    port: 65002
+                    password: ${{ secrets.SSH_PASSWORD }}
+                    script: |
+                        cd domains/hotpink-magpie-870177.hostingersite.com/public_html/
+                        rm -rf *
+                        cp -r /build/output/* .
