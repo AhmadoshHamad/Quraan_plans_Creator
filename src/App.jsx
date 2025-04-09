@@ -57,10 +57,10 @@ const StakeholderEditor = () => {
     loadWatermarkImage();
   }, [watermarkUrl]);
 
-  // Initialize rows for the selected month when component mounts
-  useEffect(() => {
-    generateMonthRows(currentMonth, currentYear);
-  }, [currentMonth, currentYear]);
+// React to changes in startingDay
+useEffect(() => {
+  generateMonthRows(currentMonth, currentYear);
+}, [startingDay, currentMonth, currentYear]);
 
   // Function to get days in month
   const getDaysInMonth = (month, year) => {
@@ -68,7 +68,14 @@ const StakeholderEditor = () => {
   };
 
 // Function to generate rows for the month starting from a specific day
+// Modify the existing generateMonthRows to use the new function
 const generateMonthRows = (month, year) => {
+  const newRows = generateMonthRowsWithDay(month, year, startingDay);
+  setRows(newRows);
+};
+
+
+const generateMonthRowsWithDay = (month, year, day) => {
   const daysInMonth = getDaysInMonth(month, year);
   const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
   
@@ -77,15 +84,15 @@ const generateMonthRows = (month, year) => {
     ["اليوم", "التاريخ", "الحفظ", "المراجعة", "نوع التسميع"]
   ];
   
-  // Create a row for each day starting from startingDay to the end of the month
-  for (let i = startingDay; i <= daysInMonth; i++) {
+  // Create a row for each day starting from the provided day to the end of the month
+  for (let i = day; i <= daysInMonth; i++) {
     const date = new Date(year, month, i);
     const dayName = days[date.getDay()];
     const dateStr = `${i}/${month + 1}`; // Month is 0-indexed, so add 1
     newRows.push([dayName, dateStr, "", "", ""]);
   }
   
-  setRows(newRows);
+  return newRows;
 };
 
  // When chapter or page is selected, populate the الحفظ column
@@ -478,22 +485,22 @@ useEffect(() => {
     }
   };
 
-  // Update PDF preview when rows, participant name, or watermark changes
-  useEffect(() => {
+ // Update PDF preview when rows, participant name, or watermark changes
+useEffect(() => {
+  if (debounceTimer.current) {
+    clearTimeout(debounceTimer.current);
+  }
+  setLoading(true);
+  debounceTimer.current = setTimeout(() => {
+    generatePDF();
+  }, 800);
+  
+  return () => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
-    setLoading(true);
-    debounceTimer.current = setTimeout(() => {
-      generatePDF();
-    }, 800);
-    
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [rows, participantName, watermarkImageData, currentMonth, currentYear]);
+  };
+}, [rows, participantName, watermarkImageData, currentMonth, currentYear]);
 
   // Clean up URLs on unmount
   useEffect(() => {
@@ -591,8 +598,11 @@ useEffect(() => {
                 className="px-3 py-2 border rounded"
                 disabled={!selectedChapter}
               >
-                <option value="">اختر صفحة</option>
-                {availablePages.map(page => (
+                {!selectedChapter && <option value="">اختر سورة أولاً</option>}
+                {selectedChapter && availablePages.length > 0 && !selectedPage && setSelectedPage(availablePages[0])}
+                {/* <option  value="">اختر صفحة</option> */}
+                { 
+                availablePages.map(page => (
                   <option key={page} value={page}>ص {page}</option>
                 ))}
               </select>
@@ -618,42 +628,50 @@ useEffect(() => {
             }}
           >
             <div className="mt-4 space-y-3">
-              <div className="w-1/2 flex justify-between items-center">
-              <div className="flex items-center">
-  <label className="text-md font-bold mb-2 ml-3">عدد الصفحات/ يوم</label>
-  <input 
-    type="number" 
-    className="w-10 p-1 border rounded"
-    value={pagesPerDay}
-    onChange={(e) => setPagesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
-    min="1"
-  />
-</div>
-<div className="flex items-center align-items-center">
-  <input 
-    type="checkbox" 
-    className="ml-2 w-7 h-7" 
-    checked={alternateDay}
-    onChange={(e) => setAlternateDay(e.target.checked)} 
-  />
-  <label className="text-md font-bold">صفحة يوم بعد يوم</label>
-</div>
-<div className="flex items-center">
-  <label className="text-md font-bold mb-2 ml-3">يوم البداية:</label>
-  <input 
-    type="number" 
-    className="w-16 p-1 border rounded"
-    value={startingDay}
-    onChange={(e) => {
-      const value = parseInt(e.target.value) || 1;
-      const maxDays = getDaysInMonth(currentMonth, currentYear);
-      setStartingDay(Math.min(Math.max(1, value), maxDays));
-    }}
-    min="1"
-    max={getDaysInMonth(currentMonth, currentYear)}
-  />
-</div>
-              </div>
+            <div className="w-1/2 flex justify-between items-center">
+    <div className="flex items-center">
+      <label className="text-md font-bold mb-2 ml-3">عدد الصفحات/ يوم</label>
+      <input 
+        type="number" 
+        className="w-10 p-1 border rounded"
+        value={pagesPerDay}
+        onChange={(e) => setPagesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+        min="1"
+      />
+    </div>
+    <div className="flex items-center">
+      <label className="text-md font-bold mb-2 ml-3">يوم البداية:</label>
+      <input 
+        type="number" 
+        className="w-16 p-1 border rounded"
+        value={startingDay}
+        // In the input onChange handler for startingDay
+        onChange={(e) => {
+          const value = parseInt(e.target.value) || 1;
+          const maxDays = getDaysInMonth(currentMonth, currentYear);
+          const validDay = Math.min(Math.max(1, value), maxDays);
+          
+          // Update state and generate rows with the new value directly
+          setStartingDay(validDay);
+          
+          // Use the actual value we just calculated rather than depending on state update
+          const updatedRows = generateMonthRowsWithDay(currentMonth, currentYear, validDay);
+          setRows(updatedRows);
+        }}
+        min="1"
+        max={getDaysInMonth(currentMonth, currentYear)}
+      />
+    </div>
+    <div className="flex items-center align-items-center">
+      <input 
+        type="checkbox" 
+        className="ml-2 w-7 h-7" 
+        checked={alternateDay}
+        onChange={(e) => setAlternateDay(e.target.checked)} 
+      />
+      <label className="text-md font-bold">صفحة يوم بعد يوم</label>
+    </div>
+  </div>
               <label className="block text-lg font-bold"> إستثناء أيام محددة:</label>
               <div className="w-1/2 grid grid-cols-3 gap-0">
   <div className="flex items-center">
