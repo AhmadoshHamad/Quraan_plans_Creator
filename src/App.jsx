@@ -519,346 +519,345 @@ useEffect(() => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen w-full" dir="rtl">
-      {/* Top Panel - Participant Name, Month/Year and Chapter controls */}
-      <div className="p-4 bg-gray-100 border-b">
-        <div className="flex flex-wrap gap-4">
-          {/* Participant Name Field */}
-          <div className="flex items-center gap-2">
-            <label className="font-medium">اسم المشترك/ة:</label>
-            <input
-              type="text"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-              className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="أدخل اسم المشترك/ة"
+    // Replace the top-level container div with this responsive container
+<div className="flex flex-col h-screen w-screen w-full" dir="rtl">
+  {/* Top Panel - Responsive control panel */}
+  <div className="p-2 sm:p-4 bg-gray-100 border-b">
+    <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4">
+      {/* Participant Name Field - Full width on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+        <label className="font-medium">اسم المشترك/ة:</label>
+        <input
+          type="text"
+          value={participantName}
+          onChange={(e) => setParticipantName(e.target.value)}
+          className="px-2 py-1 sm:px-3 sm:py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+          placeholder="أدخل اسم المشترك/ة"
+        />
+      </div>
+      
+      {/* Month/Year selectors - Side by side on mobile */}
+      <div className="flex flex-row gap-2 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1">
+          <label className="font-medium">الشهر:</label>
+          <select
+            value={currentMonth}
+            onChange={handleMonthChange}
+            className="px-2 py-1 sm:px-3 sm:py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+          >
+            {/* Month options remain the same */}
+            <option value={0}>يناير</option>
+            <option value={1}>فبراير</option>
+            <option value={2}>مارس</option>
+            <option value={3}>أبريل</option>
+            <option value={4}>مايو</option>
+            <option value={5}>يونيو</option>
+            <option value={6}>يوليو</option>
+            <option value={7}>أغسطس</option>
+            <option value={8}>سبتمبر</option>
+            <option value={9}>أكتوبر</option>
+            <option value={10}>نوفمبر</option>
+            <option value={11}>ديسمبر</option>
+          </select>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1">
+          <label className="font-medium">السنة:</label>
+          <select
+            value={currentYear}
+            onChange={handleYearChange}
+            className="px-2 py-1 sm:px-3 sm:py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+          >
+            {yearOptions.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
+      {/* Chapter Selection - Full width on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+        <label className="font-medium whitespace-nowrap">بداية الحفظ:</label>
+        <div className="flex gap-2 flex-1">
+          <select
+            value={selectedChapter?.chapter_number || ""}
+            onChange={(e) => {
+              const chapter = chapters.find(c => c.chapter_number === parseInt(e.target.value));
+              setSelectedChapter(chapter);
+            }}
+            className="px-2 py-1 sm:px-3 sm:py-2 border rounded flex-1"
+          >
+            <option value="">اختر سورة</option>
+            {chapters.map(chapter => (
+              <option key={chapter.chapter_number} value={chapter.chapter_number}>
+                {chapter.chapter_name_arabic}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedPage || ""}
+            onChange={(e) => setSelectedPage(e.target.value)}
+            className="px-2 py-1 sm:px-3 sm:py-2 border rounded flex-1"
+            disabled={!selectedChapter}
+          >
+            {!selectedChapter && <option value="">اختر سورة أولاً</option>}
+            {selectedChapter && availablePages.length > 0 && !selectedPage && setSelectedPage(availablePages[0])}
+            {availablePages.map(page => (
+              <option key={page} value={page}>ص {page}</option>
+            ))}
+          </select>
+        </div>
+        
+        <button
+          className="w-full sm:w-auto flex justify-between items-center text-left font-medium hover:text-blue-800 mt-1 sm:mt-0"
+          onClick={() => setAdvancedMenu(!advancedMenu)}
+        >
+          <span className="px-2">إعدادات متقدمة</span>
+          <span>{advancedMenu ? '▲' : '▼'}</span>
+        </button>
+      </div>
+    </div>
+    
+    {/* Advanced Settings - Responsive */}
+    <div
+      ref={contentRef}
+      className="transition-all duration-500 ease-in-out overflow-hidden"
+      style={{
+        maxHeight: advancedMenu ? contentRef.current?.scrollHeight + 'px' : '0px',
+      }}
+    >
+      <div className="mt-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 w-full">
+          <div className="flex items-center">
+            <label className="text-sm sm:text-md font-bold mb-0 sm:mb-2 ml-2 sm:ml-3 whitespace-nowrap">عدد الصفحات/ يوم</label>
+            <input 
+              type="number" 
+              className="w-10 p-1 border rounded"
+              value={pagesPerDay}
+              onChange={(e) => setPagesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+              min="1"
             />
           </div>
-          
-          {/* Month Selector */}
-          <div className="flex items-center gap-2 ">
-            <label className="font-medium">الشهر:</label>
-            <select
-              value={currentMonth}
-              onChange={handleMonthChange}
-              className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={0}>يناير</option>
-              <option value={1}>فبراير</option>
-              <option value={2}>مارس</option>
-              <option value={3}>أبريل</option>
-              <option value={4}>مايو</option>
-              <option value={5}>يونيو</option>
-              <option value={6}>يوليو</option>
-              <option value={7}>أغسطس</option>
-              <option value={8}>سبتمبر</option>
-              <option value={9}>أكتوبر</option>
-              <option value={10}>نوفمبر</option>
-              <option value={11}>ديسمبر</option>
-            </select>
+          <div className="flex items-center">
+            <label className="text-sm sm:text-md font-bold mb-0 sm:mb-2 ml-2 sm:ml-3 whitespace-nowrap">يوم البداية:</label>
+            <input 
+              type="number" 
+              className="w-16 p-1 border rounded"
+              value={startingDay}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 1;
+                const maxDays = getDaysInMonth(currentMonth, currentYear);
+                const validDay = Math.min(Math.max(1, value), maxDays);
+                
+                setStartingDay(validDay);
+                const updatedRows = generateMonthRowsWithDay(currentMonth, currentYear, validDay);
+                setRows(updatedRows);
+              }}
+              min="1"
+              max={getDaysInMonth(currentMonth, currentYear)}
+            />
           </div>
-          
-          {/* Year Selector */}
-          <div className="flex items-center gap-2">
-            <label className="font-medium">السنة:</label>
-            <select
-              value={currentYear}
-              onChange={handleYearChange}
-              className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {yearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Chapter Selection */}
-          <div className="flex items-center gap-2">
-            <label className="font-medium">بداية الحفظ:</label>
-            <div className="flex gap-2">
-              <select
-                value={selectedChapter?.chapter_number || ""}
-                onChange={(e) => {
-                  const chapter = chapters.find(c => c.chapter_number === parseInt(e.target.value));
-                  setSelectedChapter(chapter);
-                }}
-                className="px-3 py-2 border rounded"
-              >
-                <option value="">اختر سورة</option>
-                {chapters.map(chapter => (
-                  <option key={chapter.chapter_number} value={chapter.chapter_number}>
-                    {chapter.chapter_name_arabic}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedPage || ""}
-                onChange={(e) => setSelectedPage(e.target.value)}
-                className="px-3 py-2 border rounded"
-                disabled={!selectedChapter}
-              >
-                {!selectedChapter && <option value="">اختر سورة أولاً</option>}
-                {selectedChapter && availablePages.length > 0 && !selectedPage && setSelectedPage(availablePages[0])}
-                {/* <option  value="">اختر صفحة</option> */}
-                { 
-                availablePages.map(page => (
-                  <option key={page} value={page}>ص {page}</option>
-                ))}
-              </select>
-            </div>
-            <div className="">
-            <button
-        className="w-full flex justify-between items-center text-left font-medium  hover:text-blue-800"
-        onClick={() => setAdvancedMenu(!advancedMenu)}
-      >
-        <span className="px-2">إعدادات متقدمة</span>
-        <span>{advancedMenu ? '▲' : '▼'}</span>
-      </button>
-            </div>
+          <div className="flex items-center">
+            <input 
+              type="checkbox" 
+              className="ml-2 w-5 h-5 sm:w-7 sm:h-7" 
+              checked={alternateDay}
+              onChange={(e) => setAlternateDay(e.target.checked)} 
+            />
+            <label className="text-sm sm:text-md font-bold whitespace-nowrap">صفحة يوم بعد يوم</label>
           </div>
         </div>
-       
-      {/* /* Advanced Settings  */} 
-            <div
-            ref={contentRef}
-            className="transition-all duration-500 ease-in-out overflow-hidden"
-            style={{
-            maxHeight: advancedMenu ? contentRef.current?.scrollHeight + 'px' : '0px',
-            }}
-          >
-            <div className="mt-4 space-y-3">
-            <div className="w-1/2 flex justify-between items-center">
-    <div className="flex items-center">
-      <label className="text-md font-bold mb-2 ml-3">عدد الصفحات/ يوم</label>
-      <input 
-        type="number" 
-        className="w-10 p-1 border rounded"
-        value={pagesPerDay}
-        onChange={(e) => setPagesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
-        min="1"
-      />
-    </div>
-    <div className="flex items-center">
-      <label className="text-md font-bold mb-2 ml-3">يوم البداية:</label>
-      <input 
-        type="number" 
-        className="w-16 p-1 border rounded"
-        value={startingDay}
-        // In the input onChange handler for startingDay
-        onChange={(e) => {
-          const value = parseInt(e.target.value) || 1;
-          const maxDays = getDaysInMonth(currentMonth, currentYear);
-          const validDay = Math.min(Math.max(1, value), maxDays);
-          
-          // Update state and generate rows with the new value directly
-          setStartingDay(validDay);
-          
-          // Use the actual value we just calculated rather than depending on state update
-          const updatedRows = generateMonthRowsWithDay(currentMonth, currentYear, validDay);
-          setRows(updatedRows);
-        }}
-        min="1"
-        max={getDaysInMonth(currentMonth, currentYear)}
-      />
-    </div>
-    <div className="flex items-center align-items-center">
-      <input 
-        type="checkbox" 
-        className="ml-2 w-7 h-7" 
-        checked={alternateDay}
-        onChange={(e) => setAlternateDay(e.target.checked)} 
-      />
-      <label className="text-md font-bold">صفحة يوم بعد يوم</label>
-    </div>
-  </div>
-              <label className="block text-lg font-bold"> إستثناء أيام محددة:</label>
-              <div className="w-1/2 grid grid-cols-3 gap-0">
-  <div className="flex items-center">
-    <input 
-      id="ExcludeSundays" 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الأحد"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأحد": e.target.checked}))} 
-    />
-    استثناء يوم الأحد
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الإثنين"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الإثنين": e.target.checked}))} 
-    />
-    استثناء يوم الإثنين
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الثلاثاء"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الثلاثاء": e.target.checked}))} 
-    />
-    استثناء يوم الثلاثاء
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الأربعاء"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأربعاء": e.target.checked}))} 
-    />
-    استثناء يوم الأربعاء
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الخميس"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الخميس": e.target.checked}))} 
-    />
-    استثناء يوم الخميس
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["الجمعة"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الجمعة": e.target.checked}))} 
-    />
-    استثناء يوم الجمعة
-  </div>
-  <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      className="ml-2 w-5 h-5" 
-      checked={excludeWeekdays["السبت"]}
-      onChange={(e) => setExcludeWeekdays(prev => ({...prev, "السبت": e.target.checked}))} 
-    />
-    استثناء يوم السبت
-  </div>
-</div>
-            </div>
-          </div>
-
-          </div>
-          
-          {/* Main Content - Full width */}
-      <div className="flex flex-1 overflow-hidden w-full">
-        {/* Left Panel */}
-        <div className="w-1/2 p-4 overflow-auto border-l">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">جدول خطة الحفظ</h2>
-            <div className="flex gap-2">
-              <button
-                style={{ backgroundColor: "black" }}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 hover:scale-105 transition-transform duration-200"
-                onClick={downloadDocx}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span className="text-xs">
-                      جاري المعالجة...
-                      </span> 
-                  </>
-                ) : (
-                  "تحميل DOCX"
-                )}
-              </button>
-              <button
-                style={{ backgroundColor: "black" }}
-                className="text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2 hover:scale-105 transition-transform duration-200"
-                onClick={downloadPDF}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span className="text-xs">
-                      جاري المعالجة...
-                      </span> 
-                  </>
-                ) : (
-                  "تحميل PDF"
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table className="w-full table-auto border border-gray-300">
-              <thead className="sticky top-0 bg-white">
-                <tr className="bg-gray-200">
-                  {rows[0]?.map((header, colIndex) => (
-                    <th key={colIndex} className="border p-2 text-center font-bold">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(1).map((row, rowIndex) => (
-                  <tr key={rowIndex} className={rowIndex % 2 === 0 ? "bg-gray-50" : ""}>
-                    {row.map((cell, colIndex) => (
-                      <td key={colIndex} className="border p-2">
-                        {colIndex === 4 ? (
-                        <select name="" id="" 
-                        onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
-                        className="w-full border-none focus:outline-none bg-transparent text-center"
-                        value={cell}
-                        >
-                          <option value="">اختر نوع التسميع</option>
-                          <option value="مراجعة ذاتية">مراجعة ذاتية</option>
-                          <option value="اتصال">اتصال</option>
-                          <option value="اختبار">اختبار</option>
-                        </select>
-                        ) : (
-                        <input
-                          value={cell}
-                          onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
-                          className="w-full border-none focus:outline-none bg-transparent text-center"
-                          placeholder={`خانة ${rowIndex + 1},${colIndex}`}
-                          readOnly={colIndex < 2} // Make date and day columns read-only
-                        />
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         
-          <div className="w-1/2 p-4 relative flex flex-col">
-            <h2 className="text-xl font-bold mb-4 text-center">معاينة PDF المباشرة</h2>
-            
-            
-          {loading && (
-            <div className="absolute inset-0 bg-white bg-opacity-70 flex justify-center items-center z-10">
-              <div className="flex flex-col items-center">
-                <div className="w-48 h-48 border-t-transparent rounded-full animate-pulse"> <img src="logo-removebg-preview.png" alt="" /></div>
-                <p className="mt-4 text-black font-medium">جاري إنشاء التعديلات...</p>
-              </div>
-            </div>
-          )}
-          
-          {pdfUrl && (
-            <div className="flex-1 h-full">
-              <iframe
-                ref={pdfObjectRef}
-                src={`${pdfUrl}#toolbar=0&view=FitH&scrollbar=1`}
-                className="w-full h-full border "
-                title="معاينة PDF"
-              />
-            </div>
-          )}
+        <label className="block text-md sm:text-lg font-bold">إستثناء أيام محددة:</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1 sm:gap-0 w-full sm:w-3/4">
+          <div className="flex items-center">
+            <input 
+              id="ExcludeSundays" 
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الأحد"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأحد": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeSundays" className="text-sm sm:text-base">استثناء يوم الأحد</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeMondays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الإثنين"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الإثنين": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeMondays" className="text-sm sm:text-base">استثناء يوم الإثنين</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeTuesdays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الثلاثاء"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الثلاثاء": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeTuesdays" className="text-sm sm:text-base">استثناء يوم الثلاثاء</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeWednesdays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الأربعاء"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الأربعاء": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeWednesdays" className="text-sm sm:text-base">استثناء يوم الأربعاء</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeThursdays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الخميس"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الخميس": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeThursdays" className="text-sm sm:text-base">استثناء يوم الخميس</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeFridays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["الجمعة"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "الجمعة": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeFridays" className="text-sm sm:text-base">استثناء يوم الجمعة</label>
+          </div>
+          <div className="flex items-center">
+            <input 
+              id="ExcludeSaturdays"
+              type="checkbox" 
+              className="ml-1 sm:ml-2 w-4 h-4 sm:w-5 sm:h-5" 
+              checked={excludeWeekdays["السبت"]}
+              onChange={(e) => setExcludeWeekdays(prev => ({...prev, "السبت": e.target.checked}))} 
+            />
+            <label htmlFor="ExcludeSaturdays" className="text-sm sm:text-base">استثناء يوم السبت</label>
+          </div>
         </div>
       </div>
     </div>
+  </div>
+  
+  {/* Main Content - Stack vertically on mobile, side by side on desktop */}
+  <div className="flex flex-col lg:flex-row flex-1 overflow-hidden w-full">
+    {/* Table Panel - Full width on mobile */}
+    <div className="w-full lg:w-1/2 p-2 sm:p-4 overflow-auto border-b lg:border-b-0 lg:border-l">
+      <div className="flex justify-between items-center mb-2 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-bold">جدول خطة الحفظ</h2>
+        <div className="flex gap-1 sm:gap-2">
+          <button
+            style={{ backgroundColor: "black" }}
+            className="bg-green-600 text-white px-2 sm:px-4 py-1 sm:py-2 rounded text-xs sm:text-base hover:bg-green-700 flex items-center gap-1 sm:gap-2 hover:scale-105 transition-transform duration-200"
+            onClick={downloadDocx}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="inline-block w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span className="text-xs">جاري المعالجة...</span> 
+              </>
+            ) : (
+              "تحميل DOCX"
+            )}
+          </button>
+          <button
+            style={{ backgroundColor: "black" }}
+            className="text-white px-2 sm:px-4 py-1 sm:py-2 rounded text-xs sm:text-base hover:bg-red-700 flex items-center gap-1 sm:gap-2 hover:scale-105 transition-transform duration-200"
+            onClick={downloadPDF}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="inline-block w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span className="text-xs">جاري المعالجة...</span> 
+              </>
+            ) : (
+              "تحميل PDF"
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="overflow-auto max-h-[calc(50vh-6rem)] lg:max-h-[calc(100vh-12rem)]">
+        <table className="w-full table-auto border border-gray-300">
+          <thead className="sticky top-0 bg-white">
+            <tr className="bg-gray-200">
+              {rows[0]?.map((header, colIndex) => (
+                <th key={colIndex} className="border p-1 sm:p-2 text-center font-bold text-xs sm:text-base">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(1).map((row, rowIndex) => (
+              <tr key={rowIndex} className={rowIndex % 2 === 0 ? "bg-gray-50" : ""}>
+                {row.map((cell, colIndex) => (
+                  <td key={colIndex} className="border p-1 sm:p-2 text-xs sm:text-base">
+                    {colIndex === 4 ? (
+                      <select
+                        onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
+                        className="w-full border-none focus:outline-none bg-transparent text-center text-xs sm:text-base"
+                        value={cell}
+                      >
+                        <option value="">اختر نوع التسميع</option>
+                        <option value="مراجعة ذاتية">مراجعة ذاتية</option>
+                        <option value="اتصال">اتصال</option>
+                        <option value="اختبار">اختبار</option>
+                      </select>
+                    ) : (
+                      <input
+                        value={cell}
+                        onChange={(e) => updateCell(rowIndex + 1, colIndex, e.target.value)}
+                        className="w-full border-none focus:outline-none bg-transparent text-center text-xs sm:text-base"
+                        placeholder={`خانة ${rowIndex + 1},${colIndex}`}
+                        readOnly={colIndex < 2} // Make date and day columns read-only
+                      />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    {/* PDF Preview - Full width on mobile */}
+    <div className="w-full lg:w-1/2 p-2 sm:p-4 relative flex flex-col min-h-[50vh] lg:min-h-0">
+      <h2 className="text-lg sm:text-xl font-bold mb-2 sm:mb-4 text-center"> PDF Live View <span className="w-2 h-2 border-2 border-b-orange-600 rounded-full animate-pulse"></span></h2>
+      
+      {loading && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 flex justify-center items-center z-10">
+          <div className="flex flex-col items-center">
+            <div className="w-24 h-24 sm:w-48 sm:h-48 border-t-transparent rounded-full animate-pulse">
+              <img src="logo-removebg-preview.png" alt="" />
+            </div>
+            <p className="mt-2 sm:mt-4 text-black font-medium text-sm sm:text-base">جاري إنشاء التعديلات...</p>
+          </div>
+        </div>
+      )}
+      
+      {pdfUrl && (
+        <div className="flex-1 h-full">
+          <iframe
+            ref={pdfObjectRef}
+            src={`${pdfUrl}#toolbar=0&view=FitH&scrollbar=1`}
+            className="w-full h-full border"
+            title="معاينة PDF"
+          />
+        </div>
+      )}
+    </div>
+  </div>
+</div>
   );
 };
 

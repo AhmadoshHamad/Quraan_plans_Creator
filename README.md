@@ -2,7 +2,7 @@
 
 ## Demo
 
-<video controls src="media/20250409-1727-23.2384166.mp4" title="Title"></video>
+![Demo](<media/Screen Recording 2025-04-09 202837.gif>)
 
 This project is a React-based web application designed to help multaka al-aqsa mentors to create personalized Quran memorization plans for their students, it can be used by anyone else as well. It allows users to generate daily schedules for Quran memorization and review, with advanced customization options such as excluding specific weekdays, alternating days, and setting the number of pages to memorize per day. The application also supports exporting the plans as PDF or DOCX files with a watermark and Arabic text formatting.
 
