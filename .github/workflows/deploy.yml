@@ -31,4 +31,3 @@ jobs:
         run: |
             sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "rm -rf domains/hotpink-magpie-870177.hostingersite.com/public_html/*"
             sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r dist/* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:domains/hotpink-magpie-870177.hostingersite.com/public_html/
-            sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "ls -la domains/hotpink-magpie-870177.hostingersite.com/public_html/"
