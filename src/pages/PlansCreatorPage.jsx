@@ -95,7 +95,7 @@ const StakeholderEditor = () => {
     try {
       setLoading(true);
       const blob = await generateDoc(rows, participantName, currentMonth, currentYear);
-      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth}_${currentYear}.docx`);
+      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth + 1}_${currentYear}.docx`);
       setLoading(false);
     } catch (error) {
       console.error("Error generating DOCX:", error);
@@ -108,7 +108,7 @@ const StakeholderEditor = () => {
     try {
       setLoading(true);
       const blob = await generatePDF(rows, participantName, currentMonth, watermarkImageData);
-      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth}_${currentYear}.pdf`);
+      saveAs(blob, `خطة_الحفظ_${participantName}_${currentMonth + 1}_${currentYear}.pdf`);
       setLoading(false);
     } catch (error) {
       console.error("Error generating PDF:", error);
