@@ -68,6 +68,7 @@ const TablePanel = ({
                         value={cell}
                       >
                         <option value="">اختر نوع التسميع</option>
+                        <option value="مراجعة ذاتية">مراجعة ذاتية</option>
                         <option value="تسجيل">تسجيل</option>
                         <option value="اتصال">اتصال</option>
                         <option value="اختبار">اختبار</option>
